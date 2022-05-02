@@ -31,7 +31,6 @@ public class SonamuPreprocessor extends SolidityBaseListener {
 
     @Override
     public void exitPragmaDirective(SolidityParser.PragmaDirectiveContext ctx) {
-        String result = "";
         String s1 = ctx.getChild(0).getText(); // "pragma"
         String s2 = strTree.get(ctx.pragmaName());
         String s3 = strTree.get(ctx.pragmaValue());
@@ -87,7 +86,208 @@ public class SonamuPreprocessor extends SolidityBaseListener {
 
     @Override
     public void exitExpression(SolidityParser.ExpressionContext ctx) {
-        // 작성중
-        super.exitExpression(ctx);
+        // Expression이 PrimaryExpression인 경우
+        if (ctx.primaryExpression() != null) {
+            strTree.put(ctx, strTree.get(ctx.primaryExpression()));
+        }
+        // PrimaryExpression외에는 nodeCount에 따라 분리
+        int nodeCount = ctx.getChildCount();
+        String expr1 = strTree.get(ctx.expression(0)); // 가장 처음 나타나는 Expression을 미리 받아놓음
+        // 노드가 2개인 경우
+        if (nodeCount == 2) {
+            // 'new' typeName
+            if (ctx.typeName() != null) {
+                String s1 = ctx.getChild(0).getText(); // 'new'
+                String s2 = strTree.get(ctx.typeName());
+                strTree.put(ctx, s1 + " " + s2);
+            }
+            // unary operator
+            // expression이 앞에 나오는 경우
+            if (ctx.getChild(0) == ctx.expression()) {
+                String s1 = ctx.getChild(1).getText();
+                strTree.put(ctx, expr1 + s1);
+            }
+            // expression이 뒤에 나오는 경우
+            if (ctx.getChild(1) == ctx.expression()) {
+                String s1 = ctx.getChild(0).getText();
+                // s1이 after, delete인 경우 공백 추가
+                if (s1.equals("after") || s1.equals("delete")) {
+                    strTree.put(ctx, s1 + " " + expr1);
+                } else {
+                    // 나머지 경우 공백 없이 사용
+                    strTree.put(ctx,s1 + expr1);
+                }
+            }
+        }
+        // 노드가 3개인 경우
+        if (nodeCount == 3) {
+            // '(' expression ')'
+            if (ctx.getChild(0).getText().equals("(")) {
+                String s1 = ctx.getChild(0).getText(); // '('
+                String s2 = ctx.getChild(0).getText(); // ')'
+                strTree.put(ctx, s1 + expr1 + s2);
+            }
+            // binary operator
+            else {
+                String expr2 = strTree.get(ctx.expression(1));
+                String s1 = ctx.getChild(1).getText(); // 연산자
+                strTree.put(ctx, expr1 + " " + s1 + " " + expr2);
+            }
+        }
+        // 노드가 4개인 경우
+        if (nodeCount == 4) {
+            if (ctx.functionCallArguments() != null) {
+                String expr2 = strTree.get(ctx.expression(1));
+                String s1 = ctx.getChild(1).getText();
+                String s2 = ctx.getChild(3).getText();
+                strTree.put(ctx, expr1 + s1 + expr2 + s2);
+            }
+            else {
+                String funcallArgs = strTree.get(ctx.functionCallArguments());
+                String s1 = ctx.getChild(1).getText();
+                String s2 = ctx.getChild(3).getText();
+                strTree.put(ctx, expr1 + s1 + funcallArgs + s2);
+            }
+        }
+        // 노드가 5개인 경우
+        // expression '?' expression ':' expression
+        if (nodeCount == 5) {
+            String expr2 = strTree.get(ctx.expression(1));
+            String expr3 = strTree.get(ctx.expression(2));
+            String s1 = ctx.getChild(1).getText();
+            String s2 = ctx.getChild(3).getText();
+            strTree.put(ctx, expr1 + " " + s1 + " " + expr2 + " " + s2 + " " + expr3);
+        }
+    }
+
+    @Override
+    public void exitTypeName(SolidityParser.TypeNameContext ctx) {
+        if (ctx.elementaryTypeName() != null) {
+            strTree.put(ctx, strTree.get(ctx.elementaryTypeName()));
+        } else if (ctx.userDefinedTypeName() != null) {
+            strTree.put(ctx, strTree.get(ctx.userDefinedTypeName()));
+        } else if (ctx.mapping() != null) {
+            strTree.put(ctx, strTree.get(ctx.mapping()));
+        } else if (ctx.typeName() != null) {
+            String typeName = strTree.get(ctx.typeName());
+            String s1 = ctx.getChild(1).getText();
+            String s2;
+            if (ctx.expression() != null) {
+                // expression이 존재하는 경우
+                String expr = strTree.get(ctx.expression());
+                s2 = ctx.getChild(3).getText();
+                strTree.put(ctx, typeName + s1 + expr + s2);
+            } else {
+                // expression이 존재하지 않는 경우
+                s2 = ctx.getChild(2).getText();
+                strTree.put(ctx, typeName + s1 + s2);
+            }
+        } else if (ctx.functionTypeName() != null) {
+            strTree.put(ctx, strTree.get(ctx.functionTypeName()));
+        } else {
+            String s1 = ctx.getChild(0).getText();
+            String s2 = ctx.getChild(1).getText();
+            strTree.put(ctx, s1 + " " + s2);
+        }
+    }
+
+    @Override
+    public void exitElementaryTypeName(SolidityParser.ElementaryTypeNameContext ctx) {
+        strTree.put(ctx, ctx.getChild(0).getText());
+    }
+
+    @Override
+    public void exitUserDefinedTypeName(SolidityParser.UserDefinedTypeNameContext ctx) {
+        int numOfIdentifier = ctx.identifier().size();
+        String result = strTree.get(ctx.identifier(0));
+        for (int i = 1; i < numOfIdentifier; i++) {
+            result += ctx.getChild(2 * i - 1).getText(); // '.'
+            result += strTree.get(ctx.identifier(1));
+        }
+        strTree.put(ctx, result);
+    }
+
+    @Override
+    public void exitMapping(SolidityParser.MappingContext ctx) {
+        String s1 = ctx.getChild(0).getText(); // 'mapping'
+        String s2 = ctx.getChild(1).getText(); // '('
+        String s3 = ctx.getChild(3).getText(); // '=>'
+        String s4 = ctx.getChild(5).getText(); // ')'
+        String elementaryTypeName = strTree.get(ctx.elementaryTypeName());
+        String typeName = strTree.get(ctx.typeName());
+        strTree.put(ctx, s1 + s2 + elementaryTypeName + s3 + typeName + s4);
+    }
+
+    @Override
+    public void exitFunctionTypeName(SolidityParser.FunctionTypeNameContext ctx) {
+        /*
+          : 'function' functionTypeParameterList
+        ( InternalKeyword | ExternalKeyword | stateMutability )*
+        ( 'returns' functionTypeParameterList )? ;
+         */
+        String s1 = ctx.getChild(0).getText();
+        String functionTypeParameterList1 = strTree.get(ctx.functionTypeParameterList(0));
+
+        String mid = "";
+
+        String ret = "";
+        String functionTypeParameterList2 = "";
+
+        // internalKeyword || externalKeyword || stateMutability 의 총 개수 합을 구함
+        int countMidNode = ctx.getChildCount() - 2;
+        // 'returns' 구문이 있다면 -2 수행하고 값 채우기
+        if ((ret = ctx.getChild(countMidNode).getText()).equals("returns")) {
+            functionTypeParameterList2 = strTree.get(ctx.functionTypeParameterList(1));
+            countMidNode = countMidNode - 2;
+        }
+
+        // 나머지 중간 노드 채우기
+        for (int i = 0; i < countMidNode; i++) {
+            if (ctx.getChild(i + 2) instanceof SolidityParser.StateMutabilityContext) {
+                // StateMutability 노드인 경우 strTree에서 가져오기
+                mid += strTree.get(ctx.getChild(i+2));
+            } else {
+                // 그외의 노드인 경우 바로 text 불러오기
+                mid += ctx.getChild(i + 2).getText();
+            }
+        }
+
+        strTree.put(ctx, s1 + functionTypeParameterList1 + mid + ret + functionTypeParameterList2);
+    }
+
+    @Override
+    public void exitStateMutability(SolidityParser.StateMutabilityContext ctx) {
+        strTree.put(ctx, ctx.getChild(0).getText());
+    }
+
+    @Override
+    public void exitFunctionTypeParameterList(SolidityParser.FunctionTypeParameterListContext ctx) {
+        // '(' ( functionTypeParameter (',' functionTypeParameter)* )? ')' ;
+        int count = ctx.functionTypeParameter().size();
+        String s1 = ctx.getChild(0).getText(); // '('
+        String s2 = ctx.getChild(ctx.getChildCount() - 1).getText(); // ')'
+        String mid = "";
+        if (count >= 1) {
+            mid = strTree.get(ctx.functionTypeParameter(0));
+        }
+        for (int i = 1; i < count; i++) {
+            mid += ctx.getChild(2 * i).getText(); // ','
+            mid += strTree.get(ctx.functionTypeParameter(2 * i + 1));
+        }
+        strTree.put(ctx, s1 + mid + s2);
+    }
+
+    @Override
+    public void exitFunctionTypeParameter(SolidityParser.FunctionTypeParameterContext ctx) {
+        String result = strTree.get(ctx.typeName());
+        if (ctx.storageLocation() != null) {
+            result += strTree.get(ctx.storageLocation());
+        }
+        strTree.put(ctx, result);
+    }
+
+    @Override
+    public void exitStorageLocation(SolidityParser.StorageLocationContext ctx) {
+        strTree.put(ctx, ctx.getChild(0).getText());
     }
 }
