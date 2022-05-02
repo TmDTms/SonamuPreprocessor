@@ -15,15 +15,15 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         String sourceUnit = "";
         // PragmaDirective
         for (int i = 0 ; i < ctx.pragmaDirective().size() ; i++) {
-            sourceUnit += ctx.pragmaDirective(i);
+            sourceUnit += strTree.get(ctx.pragmaDirective(i));
         }
         // ImportDirective
         for (int i = 0 ; i < ctx.importDirective().size() ; i++) {
-            sourceUnit += ctx.importDirective(i);
+            sourceUnit += strTree.get(ctx.importDirective(i));
         }
         // ContractDefinition
         for (int i = 0 ; i < ctx.contractDefinition().size() ; i++) {
-            sourceUnit += ctx.contractDefinition(i);
+            sourceUnit += strTree.get(ctx.contractDefinition(i));
         }
         // 완성된 프로그램 출력
         System.out.println(sourceUnit);
@@ -36,7 +36,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         String s2 = strTree.get(ctx.pragmaName());
         String s3 = strTree.get(ctx.pragmaValue());
         String s4 = ctx.getChild(3).getText(); // ";"
-        strTree.put(ctx, s1 + " " + s2 + " " + s3 + s4);
+        strTree.put(ctx, s1 + " " + s2 + " " + s3 + s4 + "\n");
     }
 
     @Override
@@ -61,20 +61,28 @@ public class SonamuPreprocessor extends SolidityBaseListener {
 
     @Override
     public void exitVersion(SolidityParser.VersionContext ctx) {
-        // 작성중
-        // int count = ctx.version
+        String result = "";
+        for (int i = 0 ; i < ctx.getChildCount() ; i++) {
+            result += strTree.get(ctx.getChild(i));
+            if (i != ctx.getChildCount() - 1)
+                result += " ";
+        }
+        strTree.put(ctx, result);
     }
 
     @Override
     public void exitVersionConstraint(SolidityParser.VersionConstraintContext ctx) {
-        // 작성중
-        super.exitVersionConstraint(ctx);
+        String result = "";
+        if (ctx.versionOperator() != null) {
+            result += strTree.get(ctx.versionOperator());
+        }
+        result += ctx.VersionLiteral().getText(); // VersionLiteral
+        strTree.put(ctx, result);
     }
 
     @Override
     public void exitVersionOperator(SolidityParser.VersionOperatorContext ctx) {
-        // 작성중
-        super.exitVersionOperator(ctx);
+        strTree.put(ctx, ctx.getChild(0).getText());
     }
 
     @Override
