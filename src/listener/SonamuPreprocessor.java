@@ -29,6 +29,8 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         System.out.println(sourceUnit);
     }
 
+    // pragmaDirective
+
     @Override
     public void exitPragmaDirective(SolidityParser.PragmaDirectiveContext ctx) {
         String s1 = ctx.getChild(0).getText(); // "pragma"
@@ -272,7 +274,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         }
         for (int i = 1; i < count; i++) {
             mid += ctx.getChild(2 * i).getText(); // ','
-            mid += strTree.get(ctx.functionTypeParameter(2 * i + 1));
+            mid += strTree.get(ctx.functionTypeParameter(i));
         }
         strTree.put(ctx, s1 + mid + s2);
     }
@@ -289,5 +291,73 @@ public class SonamuPreprocessor extends SolidityBaseListener {
     @Override
     public void exitStorageLocation(SolidityParser.StorageLocationContext ctx) {
         strTree.put(ctx, ctx.getChild(0).getText());
+    }
+
+    // contractDefinition
+    // natSpec? ( 'contract' | 'interface' | 'library' ) identifier
+    //    ( 'is' inheritanceSpecifier (',' inheritanceSpecifier )* )?
+    //    '{' contractPart* '}' ;
+    @Override
+    public void exitContractDefinition(SolidityParser.ContractDefinitionContext ctx) {
+        String natSpec = "";
+        String kindOf = "";
+        String identifier = "";
+        String inheritanceSpecifierPart = "";
+        String leftParentheses = "";
+        String contractPart = "";
+        String rightParentheses = "";
+
+        int indexOfKindOf = 0;
+        if (ctx.natSpec() != null) {
+            natSpec = strTree.get(ctx.natSpec());
+            indexOfKindOf = 1;
+            kindOf = ctx.getChild(indexOfKindOf).getText();
+        } else {
+            kindOf = ctx.getChild(indexOfKindOf).getText();
+        }
+
+        identifier = strTree.get(ctx.identifier());
+
+        int countInheritanceSpecifier;
+        if ((countInheritanceSpecifier = ctx.inheritanceSpecifier().size()) != 0) {
+            inheritanceSpecifierPart += ctx.getChild(indexOfKindOf + 2) + " "; // 'is '
+            inheritanceSpecifierPart += strTree.get(ctx.inheritanceSpecifier(0));
+            for (int i = 1; i < countInheritanceSpecifier; i++) {
+                inheritanceSpecifierPart += ctx.getChild(indexOfKindOf + 2 + 2 * i); // ','
+                inheritanceSpecifierPart += " " + strTree.get(ctx.inheritanceSpecifier(i));
+            }
+        }
+
+        int countContractPart = ctx.contractPart().size();
+        leftParentheses = ctx.getChild(ctx.getChildCount() - countContractPart - 2).getText(); // '{'
+        rightParentheses = ctx.getChild(ctx.getChildCount() - 1).getText(); // '}'
+        for (int i = 0; i < countContractPart; i++) {
+            contractPart += strTree.get(ctx.contractPart(i));
+        }
+
+        strTree.put(ctx, natSpec + "\n" + kindOf + " " + identifier + " " + inheritanceSpecifierPart +
+                " " + leftParentheses + "\n" + contractPart + "\n" + rightParentheses);
+    }
+
+
+    // todo
+    // 1. ContractDefinition 구성하는 아래의 NatSpec, InheritanceSpecifier, ContractPart 완성하기
+    // 2. block indentation 어떻게 처리할지 논의하기
+        // 2-1. ContractDefinition -> ContractPart 들어갈 때 indent
+        // 2-2. ContractPart 아래의 각 노드에서 'block' 노드로 들어갈 때 indent
+
+    @Override
+    public void exitNatSpec(SolidityParser.NatSpecContext ctx) {
+        //todo
+    }
+
+    @Override
+    public void exitInheritanceSpecifier(SolidityParser.InheritanceSpecifierContext ctx) {
+        //todo
+    }
+
+    @Override
+    public void exitContractPart(SolidityParser.ContractPartContext ctx) {
+        //todo
     }
 }
