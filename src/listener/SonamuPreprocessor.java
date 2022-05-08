@@ -360,4 +360,52 @@ public class SonamuPreprocessor extends SolidityBaseListener {
     public void exitContractPart(SolidityParser.ContractPartContext ctx) {
         //todo
     }
+
+    @Override
+    public void exitStatement(SolidityParser.StatementContext ctx) {
+        strTree.put(ctx, strTree.get(ctx.getChild(0)));
+    }
+
+    //modifierList
+    //  ( modifierInvocation | stateMutability | ExternalKeyword
+    //  | PublicKeyword | InternalKeyword | PrivateKeyword )* ;
+
+    @Override
+    public void exitModifierList(SolidityParser.ModifierListContext ctx) {
+        int count = ctx.getChildCount();
+        String result = "";
+        for (int i = 0 ; i < count ; i++) {
+            // child가 Non-Terminal 인 경우
+            if (ctx.getChild(i) instanceof SolidityParser.ModifierInvocationContext
+                    || ctx.getChild(i) instanceof SolidityParser.StateMutabilityContext) {
+                result += strTree.get(ctx.getChild(i));
+            }
+            else {
+                // child가 Terminal인 경우
+                result += ctx.getChild(i).getText();
+            }
+            // 키워드 다음 공백 추가
+            if (i < count - 1) {
+                result += " ";
+            }
+        }
+        strTree.put(ctx, result);
+    }
+
+    //: identifier ( '(' expressionList? ')' )? ;
+    @Override
+    public void exitModifierInvocation(SolidityParser.ModifierInvocationContext ctx) {
+        String identifier = strTree.get(ctx.identifier());
+        String s1 = "";
+        String s2 = "";
+        String exprList = "";
+        if (ctx.expressionList() != null) {
+            s1 = ctx.getChild(1).getText(); // '('
+            s2 = ctx.getChild(3).getText(); // ')'
+            exprList = strTree.get(ctx.expressionList());
+        }
+        strTree.put(ctx, identifier + s1 + exprList + s2);
+    }
+
+
 }
