@@ -410,7 +410,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         strTree.put(ctx,start + mid + end + "\n");
     }
     // eventParmeterList
-    @Override public void enterEventParameterList(SolidityParser.EventParameterListContext ctx) {
+    @Override public void exitEventParameterList(SolidityParser.EventParameterListContext ctx) {
         // '(' ( eventParameter (',' eventParameter)* )? ')' ;
         int count = ctx.eventParameter().size();
         String s1 = ctx.getChild(0).getText(); // '('
