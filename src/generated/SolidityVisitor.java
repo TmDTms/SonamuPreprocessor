@@ -1,4 +1,4 @@
-// Generated from /Users/shhyun/Documents/projects/school/2022-1_project/solidity/sonamu_preprocessor/Solidity.g4 by ANTLR 4.10.1
+// Generated from C:/Users/PC/Desktop/มนวม/SonamuPreprocessor\Solidity.g4 by ANTLR 4.10.1
 
     package generated;
 

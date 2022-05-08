@@ -340,8 +340,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
     }
 
 
-    // todo
-    // 1. ContractDefinition 구성하는 아래의 NatSpec, InheritanceSpecifier, ContractPart 완성하기
+    // tod
     // 2. block indentation 어떻게 처리할지 논의하기
         // 2-1. ContractDefinition -> ContractPart 들어갈 때 indent
         // 2-2. ContractPart 아래의 각 노드에서 'block' 노드로 들어갈 때 indent
@@ -353,7 +352,16 @@ public class SonamuPreprocessor extends SolidityBaseListener {
 
     @Override
     public void exitInheritanceSpecifier(SolidityParser.InheritanceSpecifierContext ctx) {
-        //todo
+        String userDefinedTypeName = strTree.get(ctx.userDefinedTypeName());
+        String exprList = "";
+        String s1 = "";
+        String s2 = "";
+        if (ctx.expressionList() != null) {
+            s1 = ctx.getChild(1).getText(); // '('
+            s2 = ctx.getChild(3).getText(); // ')'
+            exprList = strTree.get(ctx.expressionList());
+        }
+        strTree.put(ctx, userDefinedTypeName + s1 + exprList + s2);
     }
 
     @Override
@@ -442,6 +450,118 @@ public class SonamuPreprocessor extends SolidityBaseListener {
     }
 
 
+    @Override
+    public void exitStatement(SolidityParser.StatementContext ctx) {
+        strTree.put(ctx, strTree.get(ctx.getChild(0)));
+    }
 
+    @Override
+    public void exitModifierList(SolidityParser.ModifierListContext ctx) {
+        int count = ctx.getChildCount();
+        String result = "";
+        for (int i = 0 ; i < count ; i++) {
+            // child가 Non-Terminal 인 경우
+            if (ctx.getChild(i) instanceof SolidityParser.ModifierInvocationContext
+                    || ctx.getChild(i) instanceof SolidityParser.StateMutabilityContext) {
+                result += strTree.get(ctx.getChild(i));
+            }
+            else {
+                // child가 Terminal인 경우
+                result += ctx.getChild(i).getText();
+            }
+            // 키워드 다음 공백 추가
+            if (i < count - 1) {
+                result += " ";
+            }
+        }
+        strTree.put(ctx, result);
+    }
 
+    @Override
+    public void exitModifierInvocation(SolidityParser.ModifierInvocationContext ctx) {
+        String identifier = strTree.get(ctx.identifier());
+        String s1 = "";
+        String s2 = "";
+        String exprList = "";
+        if (ctx.expressionList() != null) {
+            s1 = ctx.getChild(1).getText(); // '('
+            s2 = ctx.getChild(3).getText(); // ')'
+            exprList = strTree.get(ctx.expressionList());
+        }
+        strTree.put(ctx, identifier + s1 + exprList + s2);
+    }
+
+    @Override
+    public void exitExpressionList(SolidityParser.ExpressionListContext ctx){
+        int expr_size = ctx.expression().size();
+        StringBuffer expr_sb = new StringBuffer();
+        expr_sb.append(strTree.get(ctx.expression(0)));
+        if(expr_size > 1){
+            for(int i = 1; i < expr_size; i++)
+                expr_sb.append(", " + strTree.get(ctx.expression(i)));
+        }
+        strTree.put(ctx, expr_sb.toString());
+    }
+
+    @Override
+    public void exitStateVariableDeclaration(SolidityParser.StateVariableDeclarationContext ctx){
+        int count = ctx.getChildCount();
+        String result = strTree.get(ctx.getChild(0));
+        for (int i = 0 ; i < count ; i++) {
+            if(ctx.getChild(i) == ctx.PublicKeyword() || ctx.getChild(i) == ctx.InternalKeyword() ||
+                    ctx.getChild(i) == ctx.ConstantKeyword() || ctx.getChild(i) == ctx.PrivateKeyword()){
+                result += strTree.get(ctx.getChild(i));
+            }
+            // 키워드 다음 공백 추가
+            if (i < count - 1) {
+                result += " ";
+            }
+        }
+        result += strTree.get(ctx.identifier());
+        if(ctx.expression() != null){
+            result += "=";
+            result += strTree.get(ctx.expression());
+            result += ";";
+        }
+        strTree.put(ctx, result);
+    }
+
+    @Override
+    public void exitFunctionDefinition(SolidityParser.FunctionDefinitionContext ctx) {
+        String natSpec = "";
+        StringBuffer func_sb = new StringBuffer();
+        if(ctx.natSpec() != null){
+            natSpec = strTree.get(ctx.natSpec());
+            func_sb.append(ctx.getChild(1).getText());
+        } else
+            func_sb.append(ctx.getChild(0).getText());
+        if(ctx.identifier() != null)
+            func_sb.append(strTree.get(ctx.identifier()));
+        func_sb.append(strTree.get(ctx.parameterList()));
+        func_sb.append(strTree.get(ctx.modifierList()));
+        if(ctx.returnParameters() != null)
+            func_sb.append(strTree.get(ctx.returnParameters()));
+        if(ctx.block() != null)
+            func_sb.append(strTree.get(ctx.block()));
+        else
+            func_sb.append(";");
+        strTree.put(ctx, natSpec + func_sb.toString());
+    }
+
+    @Override
+    public void exitEventDefinition(SolidityParser.EventDefinitionContext ctx) {
+        String natSpec = "";
+        StringBuffer event_sb = new StringBuffer();
+        if(ctx.natSpec() != null){
+            natSpec = strTree.get(ctx.natSpec());
+            event_sb.append(ctx.getChild(1).getText());
+        } else
+            event_sb.append(ctx.getChild(0).getText());
+        event_sb.append(strTree.get(ctx.identifier()));
+        event_sb.append(strTree.get(ctx.eventParameterList()));
+        if(ctx.AnonymousKeyword() != null)
+            event_sb.append(ctx.AnonymousKeyword());
+        event_sb.append(";");
+        strTree.put(ctx, natSpec + event_sb.toString());
+    }
 }
