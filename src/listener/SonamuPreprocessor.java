@@ -360,4 +360,88 @@ public class SonamuPreprocessor extends SolidityBaseListener {
     public void exitContractPart(SolidityParser.ContractPartContext ctx) {
         //todo
     }
+
+    //parameterList
+    @Override public void exitParameterList(SolidityParser.ParameterListContext ctx) {
+        // '(' ( parameter (',' parameter)* )? ')' ;
+        int count = ctx.parameter().size();
+        String s1 = ctx.getChild(0).getText(); // '('
+        String s2 = ctx.getChild(ctx.getChildCount() - 1).getText(); // ')'
+        String mid = "";
+        if (count >= 1) {
+            mid = strTree.get(ctx.parameter(0));
+        }
+        for (int i = 1; i < count; i++) {
+            mid += ctx.getChild(2 * i).getText(); // ','
+            mid += strTree.get(ctx.parameter(i));
+        }
+        strTree.put(ctx, s1 + mid + s2);
+    }
+
+    //return parameters
+    @Override public void exitReturnParameters(SolidityParser.ReturnParametersContext ctx) {
+        // 'returns' parameterList ;
+        String s1 = ctx.getChild(0).getText(); // 'returns'
+        String s2 = strTree.get(ctx.parameterList());
+        strTree.put(ctx, s1 + " " + s2 + "\n");
+    }
+
+    // block
+    @Override public void exitBlock(SolidityParser.BlockContext ctx) {
+        // '{' statement* '}' ;
+        int count = ctx.statement().size();
+        String start = ctx.getChild(0).getText(); // '{'
+        String end = ctx.getChild(ctx.getChildCount()-1).getText(); // '}'
+        String mid = "";
+        if (count >= 1){
+            mid  = "\n\t" + strTree.get(ctx.statement(0)) + "\n";
+        }
+        for(int i = 1 ; i < count ; i++){
+            mid += "\t" + strTree.get(ctx.statement(i)) + "\n";
+        }
+        strTree.put(ctx,start + mid + end + "\n");
+    }
+    // eventParmeterList
+    @Override public void enterEventParameterList(SolidityParser.EventParameterListContext ctx) {
+        // '(' ( eventParameter (',' eventParameter)* )? ')' ;
+        int count = ctx.eventParameter().size();
+        String s1 = ctx.getChild(0).getText(); // '('
+        String s2 = ctx.getChild(ctx.getChildCount() - 1).getText(); // ')'
+        String mid = "";
+        if (count >= 1) {
+            mid = strTree.get(ctx.eventParameter(0));
+        }
+        for (int i = 1; i < count; i++) {
+            mid += ctx.getChild(2 * i).getText(); // ','
+            mid += strTree.get(ctx.eventParameter(i));
+        }
+        strTree.put(ctx, s1 + mid + s2);
+    }
+
+    // eventparmeter
+    @Override public void exitEventParameter(SolidityParser.EventParameterContext ctx) {
+        // typeName IndexedKeyword? identifier?
+        int count = ctx.getChildCount() - 1; // indexedkeyword와 identifier의 갯수
+        String typeName = strTree.get(ctx.typeName());
+        String indexedKeyword = "";
+        String identifier = "";
+
+        // indexedkeyword가 있으면 count -1
+        if((ctx.getChild(1).getText()).equals("indexed")) {
+            indexedKeyword = ctx.getChild(1).getText();
+            count = count - 1 ;
+        }
+
+        // count가 0이상이면 identifer가 있는것
+        if(count > 0){
+            identifier = strTree.get(ctx.getChild(ctx.getChildCount()-1));
+        }
+
+        strTree.put(ctx, typeName + indexedKeyword + identifier);
+
+    }
+
+
+
+
 }
