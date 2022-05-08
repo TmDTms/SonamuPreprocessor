@@ -366,10 +366,6 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         strTree.put(ctx, strTree.get(ctx.getChild(0)));
     }
 
-    //modifierList
-    //  ( modifierInvocation | stateMutability | ExternalKeyword
-    //  | PublicKeyword | InternalKeyword | PrivateKeyword )* ;
-
     @Override
     public void exitModifierList(SolidityParser.ModifierListContext ctx) {
         int count = ctx.getChildCount();
@@ -392,7 +388,6 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         strTree.put(ctx, result);
     }
 
-    //: identifier ( '(' expressionList? ')' )? ;
     @Override
     public void exitModifierInvocation(SolidityParser.ModifierInvocationContext ctx) {
         String identifier = strTree.get(ctx.identifier());
