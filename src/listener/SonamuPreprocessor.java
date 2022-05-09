@@ -366,7 +366,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
 
     @Override
     public void exitContractPart(SolidityParser.ContractPartContext ctx) {
-        //todo
+        strTree.put(ctx, strTree.get(ctx.getChild(0)));
     }
 
     //parameterList
@@ -529,29 +529,29 @@ public class SonamuPreprocessor extends SolidityBaseListener {
     @Override
     public void exitFunctionDefinition(SolidityParser.FunctionDefinitionContext ctx) {
         String natSpec = "";
-        StringBuffer func_sb = new StringBuffer();
+        StringBuilder func_sb = new StringBuilder();
         if(ctx.natSpec() != null){
             natSpec = strTree.get(ctx.natSpec());
             func_sb.append(ctx.getChild(1).getText());
         } else
             func_sb.append(ctx.getChild(0).getText());
         if(ctx.identifier() != null)
-            func_sb.append(strTree.get(ctx.identifier()));
+            func_sb.append(" ").append(strTree.get(ctx.identifier()));
         func_sb.append(strTree.get(ctx.parameterList()));
-        func_sb.append(strTree.get(ctx.modifierList()));
+        func_sb.append(" ").append(strTree.get(ctx.modifierList()));
         if(ctx.returnParameters() != null)
-            func_sb.append(strTree.get(ctx.returnParameters()));
+            func_sb.append(" ").append(strTree.get(ctx.returnParameters()));
         if(ctx.block() != null)
             func_sb.append(strTree.get(ctx.block()));
         else
             func_sb.append(";");
-        strTree.put(ctx, natSpec + func_sb.toString());
+        strTree.put(ctx, natSpec + func_sb);
     }
 
     @Override
     public void exitEventDefinition(SolidityParser.EventDefinitionContext ctx) {
         String natSpec = "";
-        StringBuffer event_sb = new StringBuffer();
+        StringBuilder event_sb = new StringBuilder();
         if(ctx.natSpec() != null){
             natSpec = strTree.get(ctx.natSpec());
             event_sb.append(ctx.getChild(1).getText());
@@ -562,6 +562,6 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         if(ctx.AnonymousKeyword() != null)
             event_sb.append(ctx.AnonymousKeyword());
         event_sb.append(";");
-        strTree.put(ctx, natSpec + event_sb.toString());
+        strTree.put(ctx, natSpec + event_sb);
     }
 }
