@@ -8,6 +8,15 @@ public class SonamuPreprocessor extends SolidityBaseListener {
     ParseTreeProperty<String> strTree = new ParseTreeProperty<>(); // String으로 tree를 만들어주는 객체
     int indent = 0;
 
+    // indent 값만큼 \t 추가
+    public String printIndent() {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < indent; i++) {
+            result.append("\t");
+        }
+        return result.toString();
+    }
+
     // 최상위 노드 SourceUnit
     // SourceUnit을 exit하면서 하위의 3가지 논터미널 노드가 갖는 문자열을 모두 합쳐준다.
     @Override
@@ -160,6 +169,42 @@ public class SonamuPreprocessor extends SolidityBaseListener {
             String s2 = ctx.getChild(3).getText();
             strTree.put(ctx, expr1 + " " + s1 + " " + expr2 + " " + s2 + " " + expr3);
         }
+    }
+
+    @Override
+    public void exitPrimaryExpression(SolidityParser.PrimaryExpressionContext ctx) {
+        String s1 = "";
+        if (ctx.getChild(0) == ctx.numberLiteral() || ctx.getChild(0) == ctx.identifier() ||
+                ctx.getChild(0) == ctx.tupleExpression() || ctx.getChild(0) == ctx.typeNameExpression()) {
+            // 논 터미널
+            s1 = strTree.get(ctx.getChild(0));
+        } else {
+            // 터미널
+            s1 = ctx.getChild(0).getText();
+        }
+
+        if (ctx.getChildCount() == 1) {
+            // 노드가 한 개 짜리인 경우
+            strTree.put(ctx, s1);
+        } else {
+            // 노드가 3개 인 경우
+            String s2 = ctx.getChild(1).getText();
+            String s3 = ctx.getChild(2).getText();
+            strTree.put(ctx, s1 + s2 + s3);
+        }
+    }
+
+    // numberLiteral
+    //  : (DecimalNumber | HexNumber) NumberUnit? ;
+
+    @Override
+    public void exitNumberLiteral(SolidityParser.NumberLiteralContext ctx) {
+        String s1 = ctx.getChild(0).getText();
+        String s2 = "";
+        if (ctx.getChildCount() >= 2) {
+            s2 += ctx.getChild(1).getText();
+        }
+        strTree.put(ctx, s1 + s2);
     }
 
     @Override
@@ -365,7 +410,25 @@ public class SonamuPreprocessor extends SolidityBaseListener {
     }
 
     @Override
+    public void exitModifierDefinition(SolidityParser.ModifierDefinitionContext ctx) {
+        String s1 = ctx.getChild(0).getText(); // 'modifier'
+        String s2 = strTree.get(ctx.identifier());
+        String s3 = "";
+        if (ctx.parameterList() != null) {
+            s3 = strTree.get(ctx.parameterList());
+        }
+        String s4 = strTree.get(ctx.block());
+        strTree.put(ctx, printIndent() + s1 + " " + s2 + s3 + s4);
+    }
+
+    @Override
+    public void enterContractPart(SolidityParser.ContractPartContext ctx) {
+        indent++; // indent 증가
+    }
+
+    @Override
     public void exitContractPart(SolidityParser.ContractPartContext ctx) {
+        indent--; // indent 감소
         strTree.put(ctx, strTree.get(ctx.getChild(0)));
     }
 
@@ -386,28 +449,48 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         strTree.put(ctx, s1 + mid + s2);
     }
 
+    @Override
+    public void exitParameter(SolidityParser.ParameterContext ctx) {
+        String typeName = strTree.get(ctx.typeName());
+        String storage = "";
+        String identifier = "";
+        if (ctx.storageLocation() != null) {
+            storage += " " + strTree.get(ctx.storageLocation());
+        }
+        if (ctx.identifier() != null) {
+            storage += " " + strTree.get(ctx.identifier());
+        }
+        strTree.put(ctx, typeName + storage + identifier);
+    }
+
     //return parameters
     @Override public void exitReturnParameters(SolidityParser.ReturnParametersContext ctx) {
         // 'returns' parameterList ;
         String s1 = ctx.getChild(0).getText(); // 'returns'
         String s2 = strTree.get(ctx.parameterList());
-        strTree.put(ctx, s1 + " " + s2 + "\n");
+        strTree.put(ctx, s1 + " " + s2 + " ");
+    }
+
+    @Override
+    public void enterBlock(SolidityParser.BlockContext ctx) {
+        indent++;
     }
 
     // block
     @Override public void exitBlock(SolidityParser.BlockContext ctx) {
-        // '{' statement* '}' ;
+        indent--;
         int count = ctx.statement().size();
         String start = ctx.getChild(0).getText(); // '{'
         String end = ctx.getChild(ctx.getChildCount()-1).getText(); // '}'
         String mid = "";
         if (count >= 1){
-            mid  = "\n\t" + strTree.get(ctx.statement(0)) + "\n";
+            mid  = "\n" + strTree.get(ctx.statement(0)) + "\n";
         }
         for(int i = 1 ; i < count ; i++){
-            mid += "\t" + strTree.get(ctx.statement(i)) + "\n";
+            mid += strTree.get(ctx.statement(i));
+            mid += "\n";
         }
-        strTree.put(ctx,start + mid + end + "\n");
+        strTree.put(ctx,start + mid + printIndent() + end + "\n");
     }
     // eventParmeterList
     @Override public void exitEventParameterList(SolidityParser.EventParameterListContext ctx) {
@@ -448,7 +531,6 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         strTree.put(ctx, typeName + indexedKeyword + identifier);
 
     }
-
 
     @Override
     public void exitStatement(SolidityParser.StatementContext ctx) {
@@ -505,25 +587,25 @@ public class SonamuPreprocessor extends SolidityBaseListener {
 
     @Override
     public void exitStateVariableDeclaration(SolidityParser.StateVariableDeclarationContext ctx){
-        int count = ctx.getChildCount();
-        String result = strTree.get(ctx.getChild(0));
-        for (int i = 0 ; i < count ; i++) {
+        int midCount = ctx.PublicKeyword().size() + ctx.InternalKeyword().size() + ctx.ConstantKeyword().size() + ctx.PrivateKeyword().size();
+        String result = strTree.get(ctx.typeName()) + " ";
+        for (int i = 0 ; i < midCount ; i++) {
             if(ctx.getChild(i) == ctx.PublicKeyword() || ctx.getChild(i) == ctx.InternalKeyword() ||
                     ctx.getChild(i) == ctx.ConstantKeyword() || ctx.getChild(i) == ctx.PrivateKeyword()){
                 result += strTree.get(ctx.getChild(i));
             }
             // 키워드 다음 공백 추가
-            if (i < count - 1) {
+            if (i < midCount - 1) {
                 result += " ";
             }
         }
         result += strTree.get(ctx.identifier());
         if(ctx.expression() != null){
-            result += "=";
+            result += " = ";
             result += strTree.get(ctx.expression());
-            result += ";";
         }
-        strTree.put(ctx, result);
+        result += ";" + "\n";
+        strTree.put(ctx, printIndent() + result);
     }
 
     @Override
@@ -545,7 +627,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
             func_sb.append(strTree.get(ctx.block()));
         else
             func_sb.append(";");
-        strTree.put(ctx, natSpec + func_sb);
+        strTree.put(ctx, printIndent() + natSpec + func_sb);
     }
 
     @Override
@@ -562,6 +644,112 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         if(ctx.AnonymousKeyword() != null)
             event_sb.append(ctx.AnonymousKeyword());
         event_sb.append(";");
-        strTree.put(ctx, natSpec + event_sb);
+        strTree.put(ctx, printIndent() + natSpec + event_sb);
     }
+
+    @Override
+    public void exitIfStatement(SolidityParser.IfStatementContext ctx) {
+        String s1 = ctx.getChild(0).getText(); // 'if'
+        String s2 = ctx.getChild(1).getText(); // '('
+        String expr = strTree.get(ctx.expression());
+        String s3 = ctx.getChild(3).getText(); // ')'
+        String ifStatement = strTree.get(ctx.statement(0));
+
+        // else 구문 존재 시
+        String s4 = "";
+        String elseStatement = "";
+        if (ctx.statement().size() >= 2) {
+            s4 = ctx.getChild(5).getText(); // 'else'
+            elseStatement = strTree.get(ctx.statement(1));
+        }
+        strTree.put(ctx, printIndent() + s1 + s2 + expr + s3 + " " + ifStatement + printIndent() + s4 + " " + elseStatement);
+    }
+
+    @Override
+    public void exitSimpleStatement(SolidityParser.SimpleStatementContext ctx) {
+        strTree.put(ctx, strTree.get(ctx.getChild(0)));
+    }
+
+    @Override
+    public void exitVariableDeclarationStatement(SolidityParser.VariableDeclarationStatementContext ctx) {
+        String start = "";
+        String end = "";
+
+        // 앞부분 노드 개수 파악
+        int count = ctx.getChildCount() - 1;
+        if (ctx.expression() != null) {
+            end += ctx.getChild(count - 3).getText(); // '='
+            end += strTree.get(ctx.expression());
+            count -= 2;
+        }
+
+        if (count == 1) {
+            start += strTree.get(ctx.variableDeclaration());
+        } else if (count == 2) {
+            start += ctx.getChild(0).getText();
+            start += strTree.get(ctx.identifierList());
+        }
+        else {
+            start += ctx.getChild(0).getText();
+            start += strTree.get(ctx.variableDeclarationList());
+            start += ctx.getChild(2).getText();
+        }
+        end += ctx.getChild(ctx.getChildCount() - 1).getText(); // ';'
+        strTree.put(ctx, printIndent() + start + end);
+    }
+
+    @Override
+    public void exitExpressionStatement(SolidityParser.ExpressionStatementContext ctx) {
+        String expr = strTree.get(ctx.expression());
+        String s1 = ctx.getChild(1).getText();
+        strTree.put(ctx, printIndent() + expr + s1);
+    }
+
+    @Override
+    public void exitIdentifierList(SolidityParser.IdentifierListContext ctx) {
+        int count = ctx.getChildCount();
+        String start = ctx.getChild(0).getText(); // '('
+        String end = ctx.getChild(count - 1).getText(); // ')'
+        String mid = "";
+        int identIndex = 0;
+        for (int i = 1; i < count - 1; i++) {
+            if (ctx.getChild(i) instanceof SolidityParser.IdentifierContext) {
+                mid += strTree.get(ctx.identifier(identIndex++));
+            } else {
+                mid += ctx.getChild(i).getText(); // ','
+            }
+        }
+        strTree.put(ctx, start + mid + end);
+    }
+
+    @Override
+    public void exitVariableDeclarationList(SolidityParser.VariableDeclarationListContext ctx) {
+        int count = ctx.getChildCount();
+        String result = "";
+        int identIndex = 0;
+        for (int i = 0; i < count; i++) {
+            if (ctx.getChild(i) instanceof SolidityParser.VariableDeclarationContext) {
+                result += strTree.get(ctx.variableDeclaration(identIndex++));
+            } else {
+                result += ctx.getChild(i).getText(); // ','
+            }
+        }
+        strTree.put(ctx, result);
+    }
+
+    // variableDeclaration
+    //  : typeName storageLocation? identifier ;
+
+    @Override
+    public void exitVariableDeclaration(SolidityParser.VariableDeclarationContext ctx) {
+        String typeName = strTree.get(ctx.typeName());
+        String storage = "";
+        if (ctx.storageLocation() != null) {
+            storage += " " + strTree.get(ctx.storageLocation());
+        }
+        String identifier = " " + strTree.get(ctx.identifier());
+        strTree.put(ctx, typeName + storage + identifier);
+    }
+
+
 }
