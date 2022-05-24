@@ -8,7 +8,7 @@ import generated.*;
 public class Main {
 
     public static void main(String[] args) throws Exception {
-        CharStream codeCharStream = CharStreams.fromFileName("./test/SimpleAuction.sol");
+        CharStream codeCharStream = CharStreams.fromFileName("./test/test.sol");
         SolidityLexer lexer = new SolidityLexer(codeCharStream);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         SolidityParser parser = new SolidityParser(tokens);

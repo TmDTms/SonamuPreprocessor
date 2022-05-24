@@ -675,6 +675,19 @@ public class SonamuPreprocessor extends SolidityBaseListener {
 
     @Override
     public void exitIfStatement(SolidityParser.IfStatementContext ctx) {
+        String if_snm = "경우";
+        String expr = strTree.get(ctx.expression());
+        String if_stmt = strTree.get(ctx.statement(0));
+
+        String else_snm = "";
+        String else_stmt = "";
+        if(ctx.statement().size() >= 2) {
+            else_snm = "그 외";
+            else_stmt = strTree.get(ctx.statement(1));
+        }
+        strTree.put(ctx, printIndent() + if_snm + "(" + expr + ")" + " " + if_stmt + printIndent() + else_snm + " " + else_stmt);
+
+        /*
         String s1 = ctx.getChild(0).getText(); // 'if'
         String s2 = ctx.getChild(1).getText(); // '('
         String expr = strTree.get(ctx.expression());
@@ -689,7 +702,9 @@ public class SonamuPreprocessor extends SolidityBaseListener {
             elseStatement = strTree.get(ctx.statement(1));
         }
         strTree.put(ctx, printIndent() + s1 + s2 + expr + s3 + " " + ifStatement + printIndent() + s4 + " " + elseStatement);
+        */
     }
+
 
     @Override
     public void exitSimpleStatement(SolidityParser.SimpleStatementContext ctx) {
@@ -777,6 +792,58 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         strTree.put(ctx, typeName + storage + identifier);
     }
 
+    @Override
+    public void exitReturnStatement(SolidityParser.ReturnStatementContext ctx){
+        // 'return' expression? ';'
+        String return_smn = "반환";
+        String expr = "";
+        if(ctx.expression() != null) {
+            expr = strTree.get(ctx.expression());
+        }
+        strTree.put(ctx, printIndent() + return_smn + " " + expr);
+    }
 
+    @Override
+    public void exitEmitStatement(SolidityParser.EmitStatementContext ctx) {
+        String emit_smn = "기록하다";
+        String funcCall = strTree.get(ctx.functionCall());
+        strTree.put(ctx, printIndent() + funcCall + emit_smn);
+    }
+
+    @Override
+    public void exitFunctionCall(SolidityParser.FunctionCallContext ctx) {
+        String expr = strTree.get(ctx.expression());
+        String funcCallArgu = strTree.get(ctx.functionCallArguments());
+        strTree.put(ctx, expr + "( " + funcCallArgu + " )");
+    }
+
+    @Override
+    public void exitFunctionCallArguments(SolidityParser.FunctionCallArgumentsContext ctx) {
+        String whatList = "";
+        if(ctx.getChild(1) != null && ctx.getChild(1).equals("}")) {
+            whatList = "{ " + strTree.get(ctx.nameValueList()) + " }";
+        } else{
+            whatList = strTree.get(ctx.expressionList());
+        }
+        strTree.put(ctx, whatList);
+    }
+
+    @Override
+    public void exitNameValueList(SolidityParser.NameValueListContext ctx) {
+        int size = ctx.getChildCount();
+        String nameValue = ctx.getChild(0).getText();
+        String nameValue_plus = "";
+        for(int i = 1; i < size; i++){
+            nameValue_plus += ", " + ctx.getChild(i);
+        }
+        strTree.put(ctx, nameValue + nameValue_plus);
+    }
+
+    @Override
+    public void exitNameValue(SolidityParser.NameValueContext ctx){
+        String identifier = strTree.get(ctx.identifier());
+        String expr = strTree.get(ctx.expression());
+        strTree.put(ctx, identifier + " : " + expr);
+    }
 
 }
