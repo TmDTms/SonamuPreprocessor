@@ -391,7 +391,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
             contractPart += strTree.get(ctx.contractPart(i));
         }
 
-        strTree.put(ctx, natSpec + "\n" + identifier + " " + kindOf + " " + inheritanceSpecifierPart +
+        strTree.put(ctx, natSpec + "\n" + identifier + " " + kindOf + inheritanceSpecifierPart +
                 " " + leftParentheses + "\n" + contractPart + "\n" + rightParentheses);
     }
 
@@ -564,13 +564,13 @@ public class SonamuPreprocessor extends SolidityBaseListener {
             // ExternalKeyword | PublicKeyword | InternalKeyword | PrivateKeyword -> : 외부용 | : 공용 | : 개인용 | : 상속자용 으로 변경
             else {
                 if((ctx.getChild(i).getText()).equals("public")){
-                    result += ":공용 ";
+                    result += ":공용";
                 }else if((ctx.getChild(i).getText()).equals("external")){
-                    result += ":외부용 ";
+                    result += ":외부용";
                 }else if((ctx.getChild(i).getText()).equals("internal")){
-                    result += ":상속용 ";
+                    result += ":상속용";
                 }else if((ctx.getChild(i).getText()).equals("private")){
-                    result += ":개인용 ";
+                    result += ":개인용";
                 }
             }
             // 키워드 다음 공백 추가
@@ -612,18 +612,18 @@ public class SonamuPreprocessor extends SolidityBaseListener {
     ( PublicKeyword | InternalKeyword | PrivateKeyword | ConstantKeyword )*
     identifier ('=' expression)? ';' ; */
     public void exitStateVariableDeclaration(SolidityParser.StateVariableDeclarationContext ctx){
-        String typeName = strTree.get(ctx.typeName()) + " ";
+        String typeName = strTree.get(ctx.typeName());
         String keyword = "";
         String identifier = "";
         String expression = "";
         if((ctx.getChild(1).getText()).equals("public")){
-            keyword = ":공용 ";
+            keyword = ":공용";
         }else if((ctx.getChild(1).getText()).equals("constant")){
-            keyword = ":불변처리 ";
+            keyword = ":불변처리";
         }else if((ctx.getChild(1).getText()).equals("internal")){
-            keyword = ":상속용 ";
+            keyword = ":상속용";
         }else if((ctx.getChild(1).getText()).equals("private")){
-            keyword = ":개인용 ";
+            keyword = ":개인용";
         }
 
         identifier = strTree.get(ctx.identifier());
@@ -653,7 +653,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
             func_sb.append(strTree.get(ctx.block()));
         else
             func_sb.append(";");
-        strTree.put(ctx, printIndent() + natSpec + func_sb);
+        strTree.put(ctx, natSpec + func_sb);
     }
 
     @Override
