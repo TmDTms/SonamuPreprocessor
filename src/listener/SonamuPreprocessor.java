@@ -38,15 +38,15 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         System.out.println(sourceUnit);
     }
 
-    // pragmaDirective
+    // pragmaDirective -> 번역완료
 
     @Override
     public void exitPragmaDirective(SolidityParser.PragmaDirectiveContext ctx) {
-        String s1 = ctx.getChild(0).getText(); // "pragma"
-        String s2 = strTree.get(ctx.pragmaName());
+        String s1 = "버전"; // "pragma -> 버전"
+        // String s2 = strTree.get(ctx.pragmaName());
         String s3 = strTree.get(ctx.pragmaValue());
         String s4 = ctx.getChild(3).getText(); // ";"
-        strTree.put(ctx, s1 + " " + s2 + " " + s3 + s4 + "\n");
+        strTree.put(ctx, s1 + " "  + s3 + s4 + "\n");
     }
 
     @Override
@@ -272,6 +272,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         ( InternalKeyword | ExternalKeyword | stateMutability )*
         ( 'returns' functionTypeParameterList )? ;
          */
+
         String s1 = ctx.getChild(0).getText();
         String functionTypeParameterList1 = strTree.get(ctx.functionTypeParameterList(0));
 
@@ -353,14 +354,24 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         String rightParentheses = "";
 
         int indexOfKindOf = 0;
+
+
         if (ctx.natSpec() != null) {
             natSpec = strTree.get(ctx.natSpec());
             indexOfKindOf = 1;
-            kindOf = ctx.getChild(indexOfKindOf).getText();
-        } else {
-            kindOf = ctx.getChild(indexOfKindOf).getText();
         }
 
+        // TODO) 인터페이스와 라이브러리 다른 한글 키워드로 변경
+        if ((ctx.getChild(indexOfKindOf).getText()).equals("contract")) {
+            kindOf = "계약";
+        } else if ((ctx.getChild(indexOfKindOf).getText()).equals("interface")) {
+            kindOf = "인터페이스";
+        } else {
+            kindOf = "라이브러리";
+        }
+
+
+        // TODO) identifier -> 계약 이름 한글로 변경해야함
         identifier = strTree.get(ctx.identifier());
 
         int countInheritanceSpecifier;
@@ -380,7 +391,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
             contractPart += strTree.get(ctx.contractPart(i));
         }
 
-        strTree.put(ctx, natSpec + "\n" + kindOf + " " + identifier + " " + inheritanceSpecifierPart +
+        strTree.put(ctx, natSpec + "\n" + identifier + " " + kindOf + " " + inheritanceSpecifierPart +
                 " " + leftParentheses + "\n" + contractPart + "\n" + rightParentheses);
     }
 
@@ -429,7 +440,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
     @Override
     public void exitContractPart(SolidityParser.ContractPartContext ctx) {
         indent--; // indent 감소
-        strTree.put(ctx, strTree.get(ctx.getChild(0)));
+        strTree.put(ctx, "\n\t"+strTree.get(ctx.getChild(0)));
     }
 
     //parameterList
@@ -538,6 +549,9 @@ public class SonamuPreprocessor extends SolidityBaseListener {
     }
 
     @Override
+    /*( modifierInvocation | stateMutability | ExternalKeyword
+       | PublicKeyword | InternalKeyword | PrivateKeyword )* ;*/
+    // TODO) terminal만 번역한 상태
     public void exitModifierList(SolidityParser.ModifierListContext ctx) {
         int count = ctx.getChildCount();
         String result = "";
@@ -547,9 +561,17 @@ public class SonamuPreprocessor extends SolidityBaseListener {
                     || ctx.getChild(i) instanceof SolidityParser.StateMutabilityContext) {
                 result += strTree.get(ctx.getChild(i));
             }
+            // ExternalKeyword | PublicKeyword | InternalKeyword | PrivateKeyword -> : 외부용 | : 공용 | : 개인용 | : 상속자용 으로 변경
             else {
-                // child가 Terminal인 경우
-                result += ctx.getChild(i).getText();
+                if((ctx.getChild(i).getText()).equals("public")){
+                    result += ":공용 ";
+                }else if((ctx.getChild(i).getText()).equals("external")){
+                    result += ":외부용 ";
+                }else if((ctx.getChild(i).getText()).equals("internal")){
+                    result += ":상속용 ";
+                }else if((ctx.getChild(i).getText()).equals("private")){
+                    result += ":개인용 ";
+                }
             }
             // 키워드 다음 공백 추가
             if (i < count - 1) {
@@ -586,37 +608,41 @@ public class SonamuPreprocessor extends SolidityBaseListener {
     }
 
     @Override
+    /* typeName
+    ( PublicKeyword | InternalKeyword | PrivateKeyword | ConstantKeyword )*
+    identifier ('=' expression)? ';' ; */
     public void exitStateVariableDeclaration(SolidityParser.StateVariableDeclarationContext ctx){
-        int midCount = ctx.PublicKeyword().size() + ctx.InternalKeyword().size() + ctx.ConstantKeyword().size() + ctx.PrivateKeyword().size();
-        String result = strTree.get(ctx.typeName()) + " ";
-        for (int i = 0 ; i < midCount ; i++) {
-            if(ctx.getChild(i) == ctx.PublicKeyword() || ctx.getChild(i) == ctx.InternalKeyword() ||
-                    ctx.getChild(i) == ctx.ConstantKeyword() || ctx.getChild(i) == ctx.PrivateKeyword()){
-                result += strTree.get(ctx.getChild(i));
-            }
-            // 키워드 다음 공백 추가
-            if (i < midCount - 1) {
-                result += " ";
-            }
+        String typeName = strTree.get(ctx.typeName()) + " ";
+        String keyword = "";
+        String identifier = "";
+        String expression = "";
+        if((ctx.getChild(1).getText()).equals("public")){
+            keyword = ":공용 ";
+        }else if((ctx.getChild(1).getText()).equals("constant")){
+            keyword = ":불변처리 ";
+        }else if((ctx.getChild(1).getText()).equals("internal")){
+            keyword = ":상속용 ";
+        }else if((ctx.getChild(1).getText()).equals("private")){
+            keyword = ":개인용 ";
         }
-        result += strTree.get(ctx.identifier());
+
+        identifier = strTree.get(ctx.identifier());
         if(ctx.expression() != null){
-            result += " = ";
-            result += strTree.get(ctx.expression());
+            expression = " = " + strTree.get(ctx.expression());
         }
-        result += ";" + "\n";
-        strTree.put(ctx, printIndent() + result);
+        strTree.put(ctx, typeName + " "+ identifier + keyword + expression + ";");
     }
 
     @Override
+    // natSpec? 'function' identifier? parameterList modifierList returnParameters? ( ';' | block ) ;
     public void exitFunctionDefinition(SolidityParser.FunctionDefinitionContext ctx) {
         String natSpec = "";
         StringBuilder func_sb = new StringBuilder();
         if(ctx.natSpec() != null){
             natSpec = strTree.get(ctx.natSpec());
-            func_sb.append(ctx.getChild(1).getText());
+            func_sb.append("계약내용");
         } else
-            func_sb.append(ctx.getChild(0).getText());
+            func_sb.append("계약내용");
         if(ctx.identifier() != null)
             func_sb.append(" ").append(strTree.get(ctx.identifier()));
         func_sb.append(strTree.get(ctx.parameterList()));
@@ -750,6 +776,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         String identifier = " " + strTree.get(ctx.identifier());
         strTree.put(ctx, typeName + storage + identifier);
     }
+
 
 
 }
