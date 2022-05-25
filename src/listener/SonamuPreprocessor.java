@@ -256,7 +256,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
 
     @Override
     public void exitMapping(SolidityParser.MappingContext ctx) {
-        String s1 = ctx.getChild(0).getText(); // 'mapping'
+        String s1 = "짝꿍"; // 'mapping' -> "짝꿍"
         String s2 = ctx.getChild(1).getText(); // '('
         String s3 = ctx.getChild(3).getText(); // '=>'
         String s4 = ctx.getChild(5).getText(); // ')'
@@ -300,7 +300,7 @@ public class SonamuPreprocessor extends SolidityBaseListener {
             }
         }
 
-        strTree.put(ctx, s1 + functionTypeParameterList1 + mid + ret + functionTypeParameterList2);
+        strTree.put(ctx, s1 + functionTypeParameterList1 + mid + "==>" + functionTypeParameterList2);
     }
 
     @Override
@@ -422,14 +422,14 @@ public class SonamuPreprocessor extends SolidityBaseListener {
 
     @Override
     public void exitModifierDefinition(SolidityParser.ModifierDefinitionContext ctx) {
-        String s1 = ctx.getChild(0).getText(); // 'modifier'
+        String s1 = "추가동작"; // 'modifier' -> "추가동작" 으로 번역완료
         String s2 = strTree.get(ctx.identifier());
         String s3 = "";
         if (ctx.parameterList() != null) {
             s3 = strTree.get(ctx.parameterList());
         }
         String s4 = strTree.get(ctx.block());
-        strTree.put(ctx, printIndent() + s1 + " " + s2 + s3 + s4);
+        strTree.put(ctx, s1 + " " + s2 + s3 + s4);
     }
 
     @Override
@@ -474,10 +474,10 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         strTree.put(ctx, typeName + storage + identifier);
     }
 
-    //return parameters
+    //returns -> "==>" 로 번역완료
     @Override public void exitReturnParameters(SolidityParser.ReturnParametersContext ctx) {
         // 'returns' parameterList ;
-        String s1 = ctx.getChild(0).getText(); // 'returns'
+        String s1 = "==>"; // 'returns' -> "==>"
         String s2 = strTree.get(ctx.parameterList());
         strTree.put(ctx, s1 + " " + s2 + " ");
     }
@@ -657,20 +657,20 @@ public class SonamuPreprocessor extends SolidityBaseListener {
     }
 
     @Override
+    //natSpec? 'event' identifier eventParameterList AnonymousKeyword? ';' ;
     public void exitEventDefinition(SolidityParser.EventDefinitionContext ctx) {
         String natSpec = "";
+        String event = "기록";
+        String identifier = strTree.get(ctx.identifier());
         StringBuilder event_sb = new StringBuilder();
         if(ctx.natSpec() != null){
-            natSpec = strTree.get(ctx.natSpec());
-            event_sb.append(ctx.getChild(1).getText());
-        } else
-            event_sb.append(ctx.getChild(0).getText());
-        event_sb.append(strTree.get(ctx.identifier()));
+            natSpec = strTree.get(ctx.natSpec())+" ";
+        }
         event_sb.append(strTree.get(ctx.eventParameterList()));
         if(ctx.AnonymousKeyword() != null)
             event_sb.append(ctx.AnonymousKeyword());
         event_sb.append(";");
-        strTree.put(ctx, printIndent() + natSpec + event_sb);
+        strTree.put(ctx,natSpec +identifier + " " + event +event_sb);
     }
 
     @Override
@@ -775,6 +775,18 @@ public class SonamuPreprocessor extends SolidityBaseListener {
         }
         String identifier = " " + strTree.get(ctx.identifier());
         strTree.put(ctx, typeName + storage + identifier);
+    }
+
+    // 'constructor' parameterList modifierList block ;
+    @Override
+    public void exitConstructorDefinition(SolidityParser.ConstructorDefinitionContext ctx) {
+        // constructor -> "초안" 번역완료
+        String constructor = "초안";
+        String parameterList = strTree.get(ctx.parameterList());
+        String modifierList = strTree.get(ctx.modifierList());
+        String block = strTree.get(ctx.block());
+
+        strTree.put(ctx, constructor +" "+ parameterList +" "+ modifierList +" "+ block);
     }
 
 
